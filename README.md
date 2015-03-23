@@ -1,2 +1,3 @@
 # MyFirstGitProject
-My First Project in Git
+
+Hello Git, Nice to meet you!
