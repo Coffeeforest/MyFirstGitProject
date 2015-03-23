@@ -1,0 +1,45 @@
+//Set the Moving Plan with current and target cube info.
+
+/* 1. Make sure the template in excel is like Name+Old Cube+New Cube
+   2. Import the excel sheet into SQL Server as a table, name it "updated$"
+   3. "Select * from Tablename" to check if the format is correct*/
+   
+/* Step 1: Add one column "batch" to the table and leave default to null, SELECT ALL THE OCCUPIED CUBES INTO A NEW TABLE*/
+Alter Table [CubeMove].[dbo].[updated$]add [Batch]integer
+select [Old Cube]into [CubeMove].[dbo].[CubeAvailable1] from [CubeMove].[dbo].[updated$]
+
+/* Step 2: For those who don't need to change cube, set [Batch]=0 */
+update [CubeMove].[dbo].[updated$]
+set [batch] = 0
+where [Old Cube]=[New Cube]
+
+/* Step 3: For the first batch to move, their new cubes should not be occupied */
+
+update [CubeMove].[dbo].[updated$]
+set [batch] = 1
+where [New Cube]not in(
+select [New Cube] from [CubeMove].[dbo].[updated$]
+where [CubeMove].[dbo].[updated$].[New Cube] in (select [Old Cube]from [CubeMove].[dbo].[CubeAvailable1])and batch is null)and [batch] is null
+
+/* Step 4: For the second batch till the end, add batch when the new cube is available from the old cube of last batch*/
+DECLARE @MOVEBATCH INT
+SET @MOVEBATCH = 1
+
+while (select count([New Cube]) from [CubeMove].[dbo].[updated$]where[CubeMove].[dbo].[updated$].[New Cube] in (
+SELECT [OLD CUBE]FROM [CubeMove].[dbo].[updated$]WHERE[BATCH]=@MOVEBATCH))> 0
+
+begin
+
+update [CubeMove].[dbo].[updated$]
+set [batch] = (@MOVEBATCH+1)
+WHERE [CubeMove].[dbo].[updated$].[New Cube] in (
+SELECT [OLD CUBE]FROM [CubeMove].[dbo].[updated$]WHERE[BATCH]=@MOVEBATCH)
+
+SET @MOVEBATCH=@MOVEBATCH+1
+end
+
+/* Step 5: For the remaining people, they are coupled in cube change and could be exchanging with batch 1*/
+update [CubeMove].[dbo].[updated$]
+set [batch] = 1
+where [batch]is null
+
